@@ -25,19 +25,37 @@ window.addEventListener("load", function () {
           this.game.keys.indexOf(e.key) === -1
         ) {
           this.game.keys.push(e.key);
+        } else if (e.key === " ") {
+          this.game.player.shotTop();
         }
-        console.log(this.game.keys);
       });
       window.addEventListener("keyup", (e) => {
         if (this.game.keys.indexOf(e.key) > -1) {
           this.game.keys.splice(this.game.keys.indexOf(e.key), 1);
         }
-        console.log(this.game.keys);
       });
     }
   }
 
-  class Projectile {}
+  class Projectile {
+    constructor(game, x, y) {
+      this.game = game;
+      this.x = x;
+      this.y = y;
+      this.width = 10;
+      this.height = 3;
+      this.speed = 3;
+      this.markedForDeletion = false;
+    }
+    update() {
+      this.x += this.speed;
+      if (this.x > this.game.width * 0.8) this.markedForDeletion = true;
+    }
+    draw(context) {
+      context.fillStyle = "yellow";
+      context.fillRect(this.x, this.y, this.width, this.height);
+    }
+  }
 
   class Particle {}
 
@@ -50,6 +68,7 @@ window.addEventListener("load", function () {
       this.y = 100;
       this.speedY = 0;
       this.maxSpeed = 5;
+      this.projectiles = [];
     }
     update() {
       if (this.game.keys.includes("ArrowUp")) {
@@ -60,9 +79,28 @@ window.addEventListener("load", function () {
         this.speedY = 0;
       }
       this.y += this.speedY;
+      // handle projectiles
+      this.projectiles.forEach((projectile) => {
+        projectile.update();
+      });
+      this.projectiles = this.projectiles.filter(
+        (projectile) => !projectile.markedForDeletion
+      );
     }
     draw(context) {
+      context.fillStyle = "red";
       context.fillRect(this.x, this.y, this.width, this.height);
+      this.projectiles.forEach((projectile) => {
+        projectile.draw(context);
+      });
+    }
+    shotTop() {
+      if (this.game.ammo > 0) {
+        this.projectiles.push(
+          new Projectile(this.game, this.x + 80, this.y + 30)
+        );
+        this.game.ammo--;
+      }
     }
   }
 
@@ -81,9 +119,19 @@ window.addEventListener("load", function () {
       this.player = new Player(this);
       this.input = new InputHandler(this);
       this.keys = [];
+      this.ammo = 20;
+      this.maxAmmo = 50;
+      this.ammoTimer = 0;
+      this.ammoInterval = 500;
     }
-    update() {
+    update(deltaTime) {
       this.player.update();
+      if (this.ammoTimer > this.ammoInterval) {
+        if (this.ammo < this.maxAmmo) this.ammo++;
+        this.ammoTimer = 0;
+      } else {
+        this.ammoTimer += deltaTime;
+      }
     }
     draw(context) {
       this.player.draw(context);
@@ -91,11 +139,13 @@ window.addEventListener("load", function () {
   }
 
   const game = new Game(canvas.width, canvas.height);
-
+  let lastTime = 0;
   // animate loop
-  function animate() {
+  function animate(timeStamp) {
+    const deltaTime = timeStamp - lastTime;
+    lastTime = timeStamp;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    game.update();
+    game.update(deltaTime);
     game.draw(ctx);
 
     /* requestAnimationFrame tells the browser that we wish to perform
@@ -104,5 +154,5 @@ window.addEventListener("load", function () {
     requestAnimationFrame(animate);
   }
 
-  animate();
+  animate(0);
 });
